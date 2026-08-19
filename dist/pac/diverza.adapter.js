@@ -52,8 +52,21 @@ const crypto = __importStar(require("crypto"));
 let DiverzaAdapter = DiverzaAdapter_1 = class DiverzaAdapter {
     logger = new common_1.Logger(DiverzaAdapter_1.name);
     getPacConfigFile() {
-        const basePath = process.env.CSD_STORAGE_PATH || path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE');
-        return path.join(basePath, 'pac_config.json');
+        const candidatePaths = [
+            process.env.CSD_STORAGE_PATH,
+            path.resolve(process.cwd(), 'storage'),
+            path.resolve(process.cwd(), 'docs', 'CSD_STORAGE'),
+            path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE'),
+        ];
+        for (const p of candidatePaths) {
+            if (p) {
+                const full = path.join(p, 'pac_config.json');
+                if (fs.existsSync(full))
+                    return full;
+            }
+        }
+        const defaultBase = process.env.CSD_STORAGE_PATH || path.resolve(process.cwd(), 'storage');
+        return path.join(defaultBase, 'pac_config.json');
     }
     getPacConfig() {
         const file = this.getPacConfigFile();
@@ -87,7 +100,7 @@ let DiverzaAdapter = DiverzaAdapter_1 = class DiverzaAdapter {
         if (!this.clientId || !this.token) {
             throw new common_1.BadRequestException('Falta configurar las credenciales del PAC Diverza (Client ID y Token). Por favor configúrelas en la sección "III) Datos de PAC".');
         }
-        const targetRfc = rfcEmisor || '';
+        const targetRfc = rfcEmisor || 'IVD920810GU2';
         try {
             const docType = isPayment
                 ? 'application/vnd.diverza.cfdi_4.0_complemento+xml'

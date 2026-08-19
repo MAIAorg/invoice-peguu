@@ -360,7 +360,7 @@ let PdfService = PdfService_1 = class PdfService {
     
     .sat-block { display: flex; gap: 14px; border-top: 1px solid #cbd5e1; padding-top: 15px; margin-top: 15px; align-items: flex-start; }
     .sat-qr { width: 95px; height: 95px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-    .sat-text { flex: 1; font-family: monospace; font-size: 6.5pt; color: #475569; word-break: break-all; }
+    .sat-text { flex: 1; font-family: 'Courier New', monospace; font-size: 6.2pt; color: #475569; word-break: break-all; text-align: justify; line-height: 1.25; }
     .sat-title { font-family: 'Segoe UI', sans-serif; font-size: 7.5pt; font-weight: 800; color: ${primaryPurple}; margin-bottom: 2px; }
     
     .page-footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 7.5pt; color: #64748b; }
@@ -515,35 +515,63 @@ let PdfService = PdfService_1 = class PdfService {
     async generateInvoicePdfBuffer(data) {
         return new Promise(async (resolve, reject) => {
             try {
-                const doc = new pdfkit_1.default({ size: 'LETTER', margins: { top: 28, left: 28, right: 28, bottom: 65 }, bufferPages: true });
+                const uuid = data.uuid || '70aadc83-cde9-4c57-99b2-72c572150c66';
+                const serie = data.serie || data.comprobante?.serie || 'PGU';
+                const folio = String(data.folio || data.comprobante?.folio_interno || '1');
+                const doc = new pdfkit_1.default({
+                    size: 'LETTER',
+                    margins: { top: 28, left: 28, right: 28, bottom: 65 },
+                    bufferPages: true,
+                    info: {
+                        Title: `Factura ${serie}-${folio} - ${uuid}`,
+                        Author: 'Peguu Universal Billing API',
+                        Subject: `CFDI 4.0 Folio Fiscal SAT: ${uuid}`,
+                        Keywords: 'CFDI, SAT, Factura, Peguu'
+                    }
+                });
                 const buffers = [];
                 doc.on('data', (chunk) => buffers.push(chunk));
                 doc.on('end', () => resolve(Buffer.concat(buffers)));
                 doc.on('error', (err) => reject(err));
-                const uuid = data.uuid || '70aadc83-cde9-4c57-99b2-72c572150c66';
-                const serie = data.serie || data.comprobante?.serie || 'I';
-                const folio = data.folio || data.comprobante?.folio_interno || '1796';
-                const fecha = data.fecha || '2024-10-21 18:55:17';
-                const fechaCert = data.fechaCertificacion || '2024-10-21 18:55:22';
-                const lugarExpedicion = data.lugarExpedicion || data.emisor?.domicilio?.codigo_postal || '98053';
-                const noCertificado = data.noCertificado || '00001000000519575965';
-                const noCertificadoSat = data.noCertificadoSat || '00001000000518812364';
-                const rfcPac = data.rfcPac || 'SNF171020F3A';
-                const emisor = data.emisor || {
-                    rfc: 'MMA1902216N2',
-                    nombre: 'MAYORGA MARKETING',
-                    regimen: '601',
-                    direccion: 'Av. Nezahualcóyotl 310, Col. CNOP, Zacatecas, Zacatecas. C.P. 98053',
+                const nowStr = new Date().toISOString().replace('T', ' ').split('.')[0];
+                const fecha = data.fecha || nowStr;
+                const fechaCert = data.fechaCertificacion || data.fecha_certificacion || fecha;
+                const lugarExpedicion = data.lugarExpedicion || data.lugar_expedicion || data.emisor?.domicilio?.codigo_postal || '63000';
+                const noCertificado = data.noCertificado || data.no_certificado || '30001000000500003434';
+                const noCertificadoSat = data.noCertificadoSat || data.no_certificado_sat || '00001000000518812364';
+                const rfcPac = data.rfcPac || data.rfc_pac || 'SNF171020F3A';
+                const emObj = data.emisor || {};
+                const emisorRfc = emObj.rfc || 'IVD920810GU2';
+                const emisorNombre = emObj.nombre || emObj.razon_social || emObj.nombre_comercial || 'INNOVACION VALOR Y DESARROLLO SA';
+                const emisorRegimen = emObj.regimen || emObj.regimen_fiscal || '601';
+                let emisorDireccion = emObj.direccion;
+                if (!emisorDireccion && emObj.domicilio) {
+                    const d = emObj.domicilio;
+                    emisorDireccion = `${d.calle || ''} ${d.no_exterior || ''} ${d.colonia || ''}, ${d.municipio || ''}, ${d.estado || ''}. C.P. ${d.codigo_postal || lugarExpedicion}`.trim();
+                }
+                if (!emisorDireccion) {
+                    emisorDireccion = `C.P. ${lugarExpedicion}`;
+                }
+                const emisor = {
+                    rfc: emisorRfc,
+                    nombre: emisorNombre,
+                    regimen: emisorRegimen,
+                    direccion: emisorDireccion,
                 };
-                const receptor = data.receptor || {
-                    rfc: 'CACE910410943',
-                    nombre: 'ELIZABETH CASTRO CESARETTI',
-                    regimen: '612',
-                    cp: '98610',
-                    uso: 'G03',
-                    direccion: 'Calle Circuito de la Coruña Núm. 48 Col Lomas de Galicia, Guadalupe, Zacatecas C.P. 98610',
-                    observaciones: 'X',
-                    orden_venta: 'ODV-1918',
+                const recObj = data.receptor || {};
+                const receptorCp = recObj.codigo_postal || recObj.cp || recObj.domicilio_fiscal_receptor || '';
+                const receptorDireccion = recObj.direccion || (receptorCp ? `C.P. ${receptorCp}` : '');
+                const receptorRegimen = recObj.regimen || recObj.regimen_fiscal || '601';
+                const receptorUso = recObj.uso || recObj.uso_cfdi || 'G03';
+                const receptor = {
+                    rfc: recObj.rfc || '',
+                    nombre: recObj.nombre || recObj.razon_social || '',
+                    regimen: receptorRegimen,
+                    cp: receptorCp,
+                    uso: receptorUso,
+                    direccion: receptorDireccion,
+                    observaciones: recObj.observaciones || '',
+                    orden_venta: recObj.orden_venta || recObj.orden_compra || '',
                 };
                 const rawBancarios = data.datos_bancarios || data.datosBancarios || {};
                 const datosBancarios = {
@@ -554,16 +582,16 @@ let PdfService = PdfService_1 = class PdfService {
                 };
                 const conceptos = data.conceptos || data.comprobante?.conceptos || [
                     {
-                        clave: '82101500',
-                        codigo_interno: 'SRV0001',
+                        clave: '55121715',
+                        codigo_interno: 'PGU-001',
                         unidad: 'H87 - PIEZA',
-                        descripcion: 'Diseño gráfico "rediseño de cristal"',
-                        valor: 150.00,
-                        cantidad: 2.50,
-                        importe: 375.00,
+                        descripcion: 'Holográfico - etiquetas Peguu',
+                        valor: 4.01927,
+                        cantidad: 2000,
+                        importe: 8038.54,
                         descuento: 0,
                         objetoImp: '02 - Sí objeto de impuesto',
-                        iva: 60.00,
+                        iva: 1286.17,
                     }
                 ];
                 let subtotalNum = 0;
@@ -573,12 +601,28 @@ let PdfService = PdfService_1 = class PdfService {
                 const ivaNum = Number(data.totalIva !== undefined ? data.totalIva : (subtotalNum * 0.16));
                 const totalNum = Number(data.total !== undefined ? data.total : (subtotalNum + ivaNum));
                 const moneda = data.moneda || data.comprobante?.moneda || 'MXN';
-                const formaPago = data.formaPago || data.comprobante?.forma_pago || '03';
+                const formaPago = data.formaPago || data.comprobante?.forma_pago || '04';
                 const metodoPago = data.metodoPago || data.comprobante?.metodo_pago || 'PUE';
                 const letras = this.formatLetras((0, numero_a_letras_util_1.numeroALetras)(totalNum, moneda));
-                const sello = data.sello || 'qk3IjvyQqau/pMSSLH00rIgEo8+El7w8Z4fLPkVnLmYPWHKIlCBjS7h62clSC+ils+m3hyV2FEdCSXGBslOLbPAQdVVf7+JtjeKkwFG2um/yEpHf3/eYfRqlIPjw3SPw+4bAMHzSspqo3refcIjeTuUrbGsdovwrwTLOYNOQlO6lGrzS0M/cYTDEih5cyYfEcVcbALsKqVrUP7AccF9ySkIfFk/RNdAAu6VxlDsqGN4z9BiItny4WbAcArj54e8bvmtvUc0mw668IwoQ9Flm8YdPo4t/thPwLtt/X98aPpHHEUTPcgIA+6PNJ/oR2jPYuOpGg2RyGwL4iFuE2e0MYyDZw==';
-                const selloSat = data.selloSat || data.sello_sat || 'SQp740UOclyc0y91lOUzOoXH3j+EVDHMkwMIgCO7tzcuuYkoV5UItqvGZ2jvYVppCPGnPHfF5rNxgpJZ2iYsrUJSSMhamYVrIBIF2IGKA8UMEa3/UrL5s57Os4vmabUwykzvLiTpnx23rYokVfIxL54r9UFcJyU/j5CTykd0qr9vpT0JYdqvW9Cu3WbOPiQ4WzIMVFCzKBlU7VM3Zun94/RIz0LQDD7hi43qaQf6UeK8SDvXeDPPNQuDUKSXHX/M+KBddABvHPPgdeQiDBY1LwNNv1YLZAajy9uVrI/qt7xjb/kKhwiB/KqnGYmq487a+rAG26DmTx3bAcSUw+PFxw==';
-                const cadenaOriginal = data.cadenaOriginal || data.cadena_original || `||1.1|${uuid}|${fechaCert}|SNF171020F3A|...||`;
+                let sello = data.sello || '';
+                let selloSat = data.selloSat || data.sello_sat || '';
+                if (data.xml) {
+                    if (!sello) {
+                        const mS = data.xml.match(/SelloCFD="([^"]+)"/i) || data.xml.match(/Sello="([^"]+)"/i);
+                        if (mS)
+                            sello = mS[1];
+                    }
+                    if (!selloSat) {
+                        const mSS = data.xml.match(/SelloSAT="([^"]+)"/i);
+                        if (mSS)
+                            selloSat = mSS[1];
+                    }
+                }
+                if (!sello)
+                    sello = 'qk3IjvyQqau/pMSSLH00rIgEo8+El7w8Z4fLPkVnLmYPWHKIlCBjS7h62clSC+ils+m3hyV2FEdCSXGBslOLbPAQdVVf7+JtjeKkwFG2um/yEpHf3/eYfRqlIPjw3SPw+4bAMHzSspqo3refcIjeTuUrbGsdovwrwTLOYNOQlO6lGrzS0M/cYTDEih5cyYfEcVcbALsKqVrUP7AccF9ySkIfFk/RNdAAu6VxlDsqGN4z9BiItny4WbAcArj54e8bvmtvUc0mw668IwoQ9Flm8YdPo4t/thPwLtt/X98aPpHHEUTPcgIA+6PNJ/oR2jPYuOpGg2RyGwL4iFuE2e0MYyDZw==';
+                if (!selloSat)
+                    selloSat = 'SQp740UOclyc0y91lOUzOoXH3j+EVDHMkwMIgCO7tzcuuYkoV5UItqvGZ2jvYVppCPGnPHfF5rNxgpJZ2iYsrUJSSMhamYVrIBIF2IGKA8UMEa3/UrL5s57Os4vmabUwykzvLiTpnx23rYokVfIxL54r9UFcJyU/j5CTykd0qr9vpT0JYdqvW9Cu3WbOPiQ4WzIMVFCzKBlU7VM3Zun94/RIz0LQDD7hi43qaQf6UeK8SDvXeDPPNQuDUKSXHX/M+KBddABvHPPgdeQiDBY1LwNNv1YLZAajy9uVrI/qt7xjb/kKhwiB/KqnGYmq487a+rAG26DmTx3bAcSUw+PFxw==';
+                const cadenaOriginal = data.cadenaOriginal || data.cadena_original || `||1.1|${uuid}|${fechaCert}|${rfcPac}|${sello}|${noCertificadoSat}||`;
                 const qrString = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${uuid}&re=${emisor.rfc}&rr=${receptor.rfc}&tt=${totalNum.toFixed(6)}&fe=${sello.substring(sello.length - 8)}`;
                 let qrBuffer = null;
                 try {
@@ -617,17 +661,17 @@ let PdfService = PdfService_1 = class PdfService {
                     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(18).text('Peguu', 28, 32, { width: 85, align: 'center' });
                 }
                 doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(24).text('Factura', 300, 25, { width: 284, align: 'right' });
-                doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(9.5).text(String(receptor.nombre || receptor.razon_social || '').toUpperCase(), 300, 52, { width: 284, align: 'right' });
+                doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(9.5).text(String(receptor.nombre || '').toUpperCase(), 300, 52, { width: 284, align: 'right' });
                 let y = 70;
                 const cardW = 271;
                 const cardH = 87;
                 doc.roundedRect(28, y, cardW, cardH, cornerRad).fill(cardEmisorBlue);
-                doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(9).text(String(emisor.nombre || emisor.razon_social || '').toUpperCase(), 38, y + 10, { width: cardW - 20 });
+                doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(9).text(String(emisor.nombre || '').toUpperCase(), 38, y + 10, { width: cardW - 20 });
                 doc.fillColor(textDark).font('Helvetica-Bold').fontSize(8).text('RFC: ', 38, y + 24, { continued: true }).font('Helvetica').text(emisor.rfc);
                 doc.font('Helvetica-Bold').text('RÉGIMEN FISCAL:', 38, y + 36);
                 doc.font('Helvetica').text(`${emisor.regimen} - ${(0, sat_catalogs_util_1.getRegimenDesc)(emisor.regimen)}`, 38, y + 46, { width: cardW - 20 });
                 doc.font('Helvetica-Bold').text('DIRECCIÓN:', 38, y + 58);
-                doc.font('Helvetica').text(emisor.direccion || 'C.P. 98053', 38, y + 68, { width: cardW - 20, height: 12, ellipsis: true });
+                doc.font('Helvetica').text(emisor.direccion || `C.P. ${lugarExpedicion}`, 38, y + 68, { width: cardW - 20, height: 12, ellipsis: true });
                 doc.roundedRect(313, y, cardW, cardH, cornerRad).fill(cardBancoGreen);
                 let by = y + 10;
                 const bLblW = 90;
@@ -656,22 +700,26 @@ let PdfService = PdfService_1 = class PdfService {
                 doc.fillColor(textDark).font('Helvetica-Bold').fontSize(7.0).text(receptor.rfc, 115, cy, { width: 175 });
                 cy += 12;
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('NOMBRE:', 36, cy, { width: 75 });
-                doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(receptor.nombre || receptor.razon_social, 115, cy, { width: 175 });
+                doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(receptor.nombre, 115, cy, { width: 175 });
                 cy += 12;
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('RÉGIMEN FISCAL:', 36, cy, { width: 75 });
                 doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(`${receptor.regimen} - ${(0, sat_catalogs_util_1.getRegimenDesc)(receptor.regimen)}`, 115, cy, { width: 175, height: 20 });
                 cy += 20;
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('DIRECCIÓN FISCAL:', 36, cy, { width: 75 });
-                doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(receptor.direccion || `C.P. ${receptor.cp}`, 115, cy, { width: 175, height: 20 });
+                doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(receptor.direccion || (receptor.cp ? `C.P. ${receptor.cp}` : ''), 115, cy, { width: 175, height: 20 });
                 cy += 20;
-                doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('OBSERVACIONES:', 36, cy, { width: 75 });
-                doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(receptor.observaciones || 'X', 115, cy, { width: 175 });
+                if (receptor.observaciones) {
+                    doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('OBSERVACIONES:', 36, cy, { width: 75 });
+                    doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(receptor.observaciones, 115, cy, { width: 175 });
+                }
                 cy = y + 118;
                 doc.moveTo(36, cy - 3).lineTo(290, cy - 3).strokeColor('#f1f5f9').lineWidth(1).stroke();
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('USO DE CFDI:', 36, cy);
                 doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(`${receptor.uso} - ${(0, sat_catalogs_util_1.getUsoCfdiDesc)(receptor.uso)}`, 36, cy + 9, { width: 125, height: 16 });
-                doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('Orden(es) de venta', 170, cy);
-                doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(7.0).text(receptor.orden_venta || 'ODV-1918', 170, cy + 9, { width: 120 });
+                if (receptor.orden_venta) {
+                    doc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.0).text('Orden(es) de venta', 170, cy);
+                    doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(7.0).text(receptor.orden_venta, 170, cy + 9, { width: 120 });
+                }
                 doc.roundedRect(313, y, midW, midH, cornerRad).strokeColor('#cbd5e1').lineWidth(1).stroke();
                 doc.save();
                 doc.roundedRect(313, y, midW, 22, cornerRad).clip();
@@ -778,12 +826,37 @@ let PdfService = PdfService_1 = class PdfService {
                     doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10).text('QR SAT', 28, y + 38, { width: qrSide, align: 'center' });
                 }
                 let sy = y;
-                const sealTextW = 450;
-                const sealX = 134;
+                const sealTextW = 448;
+                const sealX = 136;
+                const formatHashToJustifiedLines = (str, maxWidth, fontName, fontSize) => {
+                    doc.font(fontName).fontSize(fontSize);
+                    const lines = [];
+                    let currentLine = '';
+                    for (let i = 0; i < str.length; i++) {
+                        const char = str[i];
+                        const testLine = currentLine + char;
+                        if (doc.widthOfString(testLine) > maxWidth && currentLine.length > 0) {
+                            lines.push(currentLine);
+                            currentLine = char;
+                        }
+                        else {
+                            currentLine = testLine;
+                        }
+                    }
+                    if (currentLine.length > 0)
+                        lines.push(currentLine);
+                    return lines;
+                };
                 const drawSeal = (title, hash) => {
-                    doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(7.5).text(title, sealX, sy);
-                    doc.fillColor(textGray).font('Courier').fontSize(6.0).text(hash, sealX, sy + 9, { width: sealTextW, height: 18, ellipsis: true });
-                    sy += 30;
+                    doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(6.8).text(title, sealX, sy, { lineBreak: false });
+                    doc.fillColor(textGray).font('Courier').fontSize(4.6);
+                    const lines = formatHashToJustifiedLines(hash, sealTextW, 'Courier', 4.6);
+                    let lineY = sy + 8;
+                    for (const line of lines) {
+                        doc.text(line, sealX, lineY, { lineBreak: false });
+                        lineY += 5.5;
+                    }
+                    sy = lineY + 3.5;
                 };
                 drawSeal('Sello Digital CFDI', sello);
                 drawSeal('Sello Digital SAT', selloSat);

@@ -109,6 +109,17 @@ La API permite registrar la configuración fiscal del Emisor de forma programát
 }
 ```
 
+### D) Configurar Credenciales del PAC Diverza (Sin tocar .env)
+`POST /api/v1/facturas/configurar-pac`
+```json
+{
+  "client_id": "tu_client_id_diverza",
+  "token": "tu_token_diverza",
+  "stamp_url": "https://servicios.diverza.com/api/v2/documents/stamp",
+  "cancel_url": "https://servicios.diverza.com/api/v2/documents/UUID/cancel"
+}
+```
+
 ---
 
 ## 📡 4. Endpoints Principales de Facturación

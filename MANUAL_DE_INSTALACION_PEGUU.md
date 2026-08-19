@@ -136,6 +136,32 @@ Antes de emitir la primera factura, se deben registrar los datos fiscales y los 
 
 ---
 
+### 4) Configurar Credenciales del PAC Diverza (Sin tocar .env)
+`POST http://localhost:3000/api/v1/facturas/configurar-pac`
+> *Permite registrar o actualizar las credenciales y URLs de Diverza PAC de forma 100% programática.*
+
+#### Para Entorno de Pruebas (Sandbox / Dev):
+```json
+{
+  "client_id": "tu_client_id_sandbox",
+  "token": "tu_token_sandbox",
+  "stamp_url": "https://serviciosdemo.diverza.com/api/v2/documents/stamp",
+  "cancel_url": "https://serviciosdemo.diverza.com/api/v2/documents/UUID/cancel"
+}
+```
+
+#### Para Entorno de Producción (Prod):
+```json
+{
+  "client_id": "tu_client_id_produccion",
+  "token": "tu_token_produccion",
+  "stamp_url": "https://servicios.diverza.com/api/v2/documents/stamp",
+  "cancel_url": "https://servicios.diverza.com/api/v2/documents/UUID/cancel"
+}
+```
+
+---
+
 ## 🧾 4. Cómo Timbrar una Factura desde tu Tienda / Sistema
 
 Para generar y timbrar una factura de venta, envía una petición POST al endpoint de timbrado:
