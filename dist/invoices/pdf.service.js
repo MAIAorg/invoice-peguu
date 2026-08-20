@@ -742,19 +742,41 @@ let PdfService = PdfService_1 = class PdfService {
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(6.5).text('CERTIFICADO SAT', 323, fy).text('RFC DEL PAC', 470, fy);
                 doc.fillColor(textDark).font('Helvetica').fontSize(7.0).text(noCertificadoSat, 323, fy + 8).text(rfcPac, 470, fy + 8);
                 y += midH + 15;
-                doc.rect(28, y, 556, 20).fill(primaryPurple);
-                doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(7.0);
-                doc.text('DESCRIPCIÓN', 158, y + 6, { width: 115, lineBreak: false });
-                doc.text('OBJETO IMPUESTO', 273, y + 6, { width: 77, lineBreak: false });
-                doc.text('VALOR UNITARIO', 350, y + 6, { width: 62, align: 'right', lineBreak: false });
-                doc.text('CANTIDAD', 412, y + 6, { width: 45, align: 'right', lineBreak: false });
-                doc.text('IMPORTE', 457, y + 6, { width: 68, align: 'right', lineBreak: false });
-                doc.text('DESCUENTO', 525, y + 6, { width: 58, align: 'right', lineBreak: false });
-                y += 20;
+                const drawContinuationHeader = (targetDoc) => {
+                    const cy = 28;
+                    if (logoHeaderSvg) {
+                        try {
+                            (0, svg_to_pdfkit_1.default)(targetDoc, logoHeaderSvg, 28, cy, { width: 95, height: 32 });
+                        }
+                        catch (e) { }
+                    }
+                    else {
+                        targetDoc.roundedRect(28, cy, 75, 26, 13).fill(primaryPurple);
+                        targetDoc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(14).text('Peguu', 28, cy + 5, { width: 75, align: 'center' });
+                    }
+                    targetDoc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(18).text('Factura', 350, cy, { width: 234, align: 'right' });
+                    targetDoc.fillColor(textGray).font('Helvetica-Bold').fontSize(7.5).text(`SERIE: ${serie}   FOLIO: ${folio}`, 350, cy + 19, { width: 234, align: 'right' });
+                    targetDoc.fillColor(primaryPurple).font('Helvetica').fontSize(6.5).text(`FOLIO FISCAL SAT: ${uuid}`, 200, cy + 29, { width: 384, align: 'right' });
+                    targetDoc.moveTo(28, cy + 40).lineTo(584, cy + 40).strokeColor('#cbd5e1').lineWidth(1).stroke();
+                    return cy + 48;
+                };
+                const drawTableHeader = (targetY) => {
+                    doc.rect(28, targetY, 556, 20).fill(primaryPurple);
+                    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(7.0);
+                    doc.text('DESCRIPCIÓN', 158, targetY + 6, { width: 115, lineBreak: false });
+                    doc.text('OBJETO IMPUESTO', 273, targetY + 6, { width: 77, lineBreak: false });
+                    doc.text('VALOR UNITARIO', 350, targetY + 6, { width: 62, align: 'right', lineBreak: false });
+                    doc.text('CANTIDAD', 412, targetY + 6, { width: 45, align: 'right', lineBreak: false });
+                    doc.text('IMPORTE', 457, targetY + 6, { width: 68, align: 'right', lineBreak: false });
+                    doc.text('DESCUENTO', 525, targetY + 6, { width: 58, align: 'right', lineBreak: false });
+                    return targetY + 20;
+                };
+                y = drawTableHeader(y);
                 conceptos.forEach((c) => {
-                    if (y > 640) {
+                    if (y + 60 > 600) {
                         doc.addPage();
-                        y = 40;
+                        y = drawContinuationHeader(doc);
+                        y = drawTableHeader(y);
                     }
                     const itemImporte = Number(c.importe || (c.cantidad * (c.valor_unitario || c.valor)));
                     const itemValor = Number(c.valor_unitario || c.valor || 0);
@@ -768,7 +790,7 @@ let PdfService = PdfService_1 = class PdfService {
                     doc.text('CÓDIGO: ', 34, y + 4, { continued: true }).font('Helvetica').fillColor(primaryPurple).text(codInt);
                     doc.font('Helvetica-Bold').text('UNIDAD: ', 34, y + 15, { continued: true }).font('Helvetica').fillColor(primaryPurple).text(unidad, { width: 120, height: 10, ellipsis: true });
                     doc.font('Helvetica-Bold').text('CÓDIGO SAT: ', 34, y + 26, { continued: true }).font('Helvetica').fillColor(primaryPurple).text(claveProd);
-                    doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(7.2).text(c.descripcion || 'Diseño gráfico "rediseño de cristal"', 158, y + 4, { width: 115, height: 28 });
+                    doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(7.2).text(c.descripcion || 'Producto', 158, y + 4, { width: 115, height: 28 });
                     doc.font('Helvetica').fontSize(7.0).fillColor(primaryPurple).text(c.objetoImp || c.objeto_imp || '02 - Sí objeto de impuesto', 273, y + 4, { width: 77 });
                     doc.fillColor(primaryPurple).font('Helvetica').fontSize(7.0).text(this.formatCurrency(itemValor), 350, y + 4, { width: 62, align: 'right' });
                     doc.text(this.formatQuantity(c.cantidad || 1), 412, y + 4, { width: 45, align: 'right' });
@@ -786,13 +808,13 @@ let PdfService = PdfService_1 = class PdfService {
                     doc.moveTo(28, y).lineTo(584, y).strokeColor('#e2e8f0').lineWidth(1).stroke();
                     y += 4;
                 });
-                if (y > 600) {
+                if (y + 115 > 600) {
                     doc.addPage();
-                    y = 40;
+                    y = drawContinuationHeader(doc);
                 }
-                y += 10;
+                y += 8;
                 const totBoxW = 271;
-                const totBoxH = 82;
+                const totBoxH = 80;
                 doc.roundedRect(28, y, totBoxW, totBoxH, cornerRad).fill(cardPaymentGreen);
                 let py = y + 10;
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(8).text('Método de pago:', 38, py);
@@ -803,7 +825,7 @@ let PdfService = PdfService_1 = class PdfService {
                 doc.fillColor(textGray).font('Helvetica-Bold').fontSize(8).text('Moneda:', 208, py);
                 doc.fillColor(textDark).font('Helvetica-Bold').fontSize(8).text(moneda, 208, py + 10);
                 doc.roundedRect(313, y, totBoxW, totBoxH, cornerRad).fill(cardTotalsSalmon);
-                let ty = y + 12;
+                let ty = y + 10;
                 doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(11).text('Subtotal', 328, ty);
                 doc.fillColor(primaryPurple).text(this.formatCurrency(subtotalNum), 430, ty, { width: 140, align: 'right' });
                 ty += 18;
@@ -812,59 +834,59 @@ let PdfService = PdfService_1 = class PdfService {
                 ty += 22;
                 doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(14).text('Total', 328, ty);
                 doc.text(this.formatCurrency(totalNum), 430, ty, { width: 140, align: 'right' });
-                y += totBoxH + 6;
+                y += totBoxH + 5;
                 doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(7.5).text(letras, 28, y, { width: 556, align: 'right' });
-                y += 20;
-                doc.moveTo(28, y).lineTo(584, y).strokeColor('#cbd5e1').lineWidth(1).stroke();
-                y += 12;
-                const qrSide = 90;
-                if (qrBuffer) {
-                    doc.image(qrBuffer, 28, y, { width: qrSide, height: qrSide });
-                }
-                else {
-                    doc.roundedRect(28, y, qrSide, qrSide, cornerRad).fill(primaryPurple);
-                    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10).text('QR SAT', 28, y + 38, { width: qrSide, align: 'center' });
-                }
-                let sy = y;
-                const sealTextW = 448;
-                const sealX = 136;
-                const formatHashToJustifiedLines = (str, maxWidth, fontName, fontSize) => {
-                    doc.font(fontName).fontSize(fontSize);
-                    const lines = [];
-                    let currentLine = '';
-                    for (let i = 0; i < str.length; i++) {
-                        const char = str[i];
-                        const testLine = currentLine + char;
-                        if (doc.widthOfString(testLine) > maxWidth && currentLine.length > 0) {
-                            lines.push(currentLine);
-                            currentLine = char;
-                        }
-                        else {
-                            currentLine = testLine;
-                        }
-                    }
-                    if (currentLine.length > 0)
-                        lines.push(currentLine);
-                    return lines;
-                };
-                const drawSeal = (title, hash) => {
-                    doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(6.8).text(title, sealX, sy, { lineBreak: false });
-                    doc.fillColor(textGray).font('Courier').fontSize(4.6);
-                    const lines = formatHashToJustifiedLines(hash, sealTextW, 'Courier', 4.6);
-                    let lineY = sy + 8;
-                    for (const line of lines) {
-                        doc.text(line, sealX, lineY, { lineBreak: false });
-                        lineY += 5.5;
-                    }
-                    sy = lineY + 3.5;
-                };
-                drawSeal('Sello Digital CFDI', sello);
-                drawSeal('Sello Digital SAT', selloSat);
-                drawSeal('Cadena original del complemento de certificación digital del SAT', cadenaOriginal);
                 const range = doc.bufferedPageRange();
                 for (let i = 0; i < range.count; i++) {
                     doc.switchToPage(i);
                     doc.page.margins.bottom = 0;
+                    const by = 612;
+                    doc.moveTo(28, by).lineTo(584, by).strokeColor('#cbd5e1').lineWidth(1).stroke();
+                    const qrSide = 86;
+                    const qry = by + 8;
+                    if (qrBuffer) {
+                        doc.image(qrBuffer, 28, qry, { width: qrSide, height: qrSide });
+                    }
+                    else {
+                        doc.roundedRect(28, qry, qrSide, qrSide, cornerRad).fill(primaryPurple);
+                        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10).text('QR SAT', 28, qry + 36, { width: qrSide, align: 'center' });
+                    }
+                    let sy = qry;
+                    const sealTextW = 450;
+                    const sealX = 134;
+                    const formatHashToJustifiedLines = (str, maxWidth, fontName, fontSize) => {
+                        doc.font(fontName).fontSize(fontSize);
+                        const lines = [];
+                        let currentLine = '';
+                        for (let j = 0; j < str.length; j++) {
+                            const char = str[j];
+                            const testLine = currentLine + char;
+                            if (doc.widthOfString(testLine) > maxWidth && currentLine.length > 0) {
+                                lines.push(currentLine);
+                                currentLine = char;
+                            }
+                            else {
+                                currentLine = testLine;
+                            }
+                        }
+                        if (currentLine.length > 0)
+                            lines.push(currentLine);
+                        return lines;
+                    };
+                    const drawSeal = (title, hash) => {
+                        doc.fillColor(primaryPurple).font('Helvetica-Bold').fontSize(6.5).text(title, sealX, sy, { lineBreak: false });
+                        doc.fillColor(textGray).font('Courier').fontSize(4.5);
+                        const lines = formatHashToJustifiedLines(hash, sealTextW, 'Courier', 4.5);
+                        let lineY = sy + 7.5;
+                        for (const line of lines) {
+                            doc.text(line, sealX, lineY, { lineBreak: false });
+                            lineY += 5.2;
+                        }
+                        sy = lineY + 3;
+                    };
+                    drawSeal('Sello Digital CFDI', sello);
+                    drawSeal('Sello Digital SAT', selloSat);
+                    drawSeal('Cadena original del complemento de certificación digital del SAT', cadenaOriginal);
                     const fy = 738;
                     doc.moveTo(28, fy).lineTo(584, fy).strokeColor('#e2e8f0').lineWidth(1).stroke();
                     if (logoFooterSvg) {
