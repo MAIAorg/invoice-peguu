@@ -10,6 +10,7 @@ export declare class InvoicesService {
     constructor(pacProvider: DiverzaAdapter, cryptoService: CryptoService, pdfService: PdfService);
     generateOriginalChainIngreso(data: any, fecha: string): string;
     generateOriginalChainPago(data: any, fecha: string): string;
+    private getStorageBaseDir;
     private getStorageDir;
     private getDemoDir;
     savePacConfig(body: {
@@ -122,6 +123,7 @@ export declare class InvoicesService {
     stampInvoice(invoiceData: any): Promise<StampedResponse>;
     generatePreviewHtml(body: any): Promise<string>;
     generatePdfBuffer(body: any): Promise<Buffer>;
+    private enrichPayload;
     stampBatch(body: {
         origen?: string;
         facturas: any[];

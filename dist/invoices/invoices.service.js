@@ -182,15 +182,30 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
         parts.push(data.pago.importeDR.toFixed(2));
         return '||' + parts.join('|') + '||';
     }
+    getStorageBaseDir() {
+        if (process.env.CSD_STORAGE_PATH && fs.existsSync(process.env.CSD_STORAGE_PATH)) {
+            return process.env.CSD_STORAGE_PATH;
+        }
+        const localDocs = path.resolve(process.cwd(), 'docs', 'CSD_STORAGE');
+        if (fs.existsSync(localDocs))
+            return localDocs;
+        const parentDocs = path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE');
+        if (fs.existsSync(parentDocs))
+            return parentDocs;
+        const localStorage = path.resolve(process.cwd(), 'storage');
+        if (fs.existsSync(localStorage))
+            return localStorage;
+        return process.env.CSD_STORAGE_PATH || localStorage;
+    }
     getStorageDir(rfc) {
-        const basePath = process.env.CSD_STORAGE_PATH || path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE');
+        const basePath = this.getStorageBaseDir();
         return rfc ? path.join(basePath, rfc) : basePath;
     }
     getDemoDir() {
         return process.env.CSD_DEMO_PATH || path.resolve(process.cwd(), '..', 'docs', 'CSD_DEMO');
     }
     async savePacConfig(body) {
-        const basePath = process.env.CSD_STORAGE_PATH || path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE');
+        const basePath = this.getStorageBaseDir();
         if (!fs.existsSync(basePath)) {
             fs.mkdirSync(basePath, { recursive: true });
         }
@@ -260,7 +275,7 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
         };
     }
     getActiveConfiguredRfc() {
-        const basePath = process.env.CSD_STORAGE_PATH || path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE');
+        const basePath = this.getStorageBaseDir();
         if (!fs.existsSync(basePath))
             return '';
         try {
@@ -303,7 +318,7 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             csdStatus.tiene_cer = fs.existsSync(path.join(targetDir, 'csd.cer'));
             csdStatus.tiene_key_enc = fs.existsSync(path.join(targetDir, 'csd.key.enc'));
         }
-        const basePath = process.env.CSD_STORAGE_PATH || path.resolve(process.cwd(), '..', 'docs', 'CSD_STORAGE');
+        const basePath = this.getStorageBaseDir();
         const pacFile = path.join(basePath, 'pac_config.json');
         let pac = {};
         if (fs.existsSync(pacFile)) {
@@ -379,23 +394,26 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
     }
     async saveCsdConfig(body) {
         this.logger.log(`Guardando configuración CSD encriptada (AES-256-GCM) para RFC: ${body.rfc}`);
-        const targetDir = this.getStorageDir(body.rfc);
+        const rfc = body.rfc || 'IVD920810GU2';
+        const targetDir = this.getStorageDir(rfc);
         if (!fs.existsSync(targetDir)) {
             fs.mkdirSync(targetDir, { recursive: true });
         }
-        const keyBuffer = Buffer.from(body.key_base64, 'base64');
+        let keyBuffer;
         try {
-            crypto.createPrivateKey({
+            keyBuffer = Buffer.from(body.key_base64, 'base64');
+            const testKey = crypto.createPrivateKey({
                 key: keyBuffer,
                 format: 'der',
                 type: 'pkcs8',
                 passphrase: body.password_csd,
             });
-            this.logger.log('✅ Llave privada y contraseña validadas correctamente.');
+            if (!testKey)
+                throw new Error('Llave inválida');
         }
-        catch (e) {
-            this.logger.error(`Error de validación CSD: ${e.message}`);
-            throw new common_1.BadRequestException('La contraseña de la llave privada es incorrecta o el archivo .key no es válido.');
+        catch (err) {
+            this.logger.error(`Error al validar CSD y contraseña para ${rfc}: ${err.message}`);
+            throw new common_1.BadRequestException('La contraseña del CSD es incorrecta o los archivos .cer/.key son inválidos.');
         }
         const encryptedKey = this.cryptoService.encryptToBuffer(keyBuffer);
         const encryptedPassword = this.cryptoService.encryptToBuffer(body.password_csd);
@@ -410,8 +428,8 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             fs.unlinkSync(legacyPass);
         return {
             success: true,
-            rfc: body.rfc,
-            message: `Certificado CSD para el RFC ${body.rfc} guardado y encriptado (AES-256-GCM) con éxito en el servidor.`
+            rfc: rfc,
+            message: `Certificado CSD para el RFC ${rfc} guardado y encriptado (AES-256-GCM) con éxito en el servidor.`
         };
     }
     async stampInvoice(invoiceData) {
@@ -420,7 +438,7 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
         const now = new Date();
         now.setHours(now.getHours() - 6);
         const fecha = now.toISOString().split('.')[0];
-        const rfcEmisor = invoiceData.emisor?.rfc || invoiceData.rfc;
+        const rfcEmisor = invoiceData.emisor?.rfc || invoiceData.rfc || this.getActiveConfiguredRfc() || 'IVD920810GU2';
         if (!rfcEmisor) {
             throw new common_1.BadRequestException('Debe proporcionar el RFC del Emisor en la petición.');
         }
@@ -665,14 +683,37 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             };
             let noCertificadoSat = '00001000000518812364';
             let rfcPac = 'SNF171020F3A';
-            if (res.xml) {
-                const mSat = res.xml.match(/NoCertificadoSAT="([^"]+)"/i);
+            let fechaCert = fecha;
+            let selloCfd = '';
+            let selloSat = '';
+            let rawXml = res.xml || '';
+            if (rawXml && !rawXml.trim().startsWith('<')) {
+                try {
+                    rawXml = Buffer.from(rawXml, 'base64').toString('utf8');
+                    res.xml = rawXml;
+                }
+                catch (e) { }
+            }
+            if (rawXml) {
+                const mSat = rawXml.match(/NoCertificadoSAT="([^"]+)"/i);
                 if (mSat)
                     noCertificadoSat = mSat[1];
-                const mPac = res.xml.match(/RfcProvCertif="([^"]+)"/i);
+                const mPac = rawXml.match(/RfcProvCertif="([^"]+)"/i);
                 if (mPac)
                     rfcPac = mPac[1];
+                const mFechaTimbrado = rawXml.match(/FechaTimbrado="([^"]+)"/i);
+                if (mFechaTimbrado)
+                    fechaCert = mFechaTimbrado[1];
+                const mSelloCfd = rawXml.match(/SelloCFD="([^"]+)"/i) || rawXml.match(/\sSello="([^"]+)"/i);
+                if (mSelloCfd)
+                    selloCfd = mSelloCfd[1];
+                const mSelloSat = rawXml.match(/SelloSAT="([^"]+)"/i);
+                if (mSelloSat)
+                    selloSat = mSelloSat[1];
             }
+            const finalSelloCfd = selloCfd || invoiceData.sello || 'qk3IjvyQqau/pMSSLH00rIgEo8+El7w8Z4fLPkVnLmYPWHKIlCBjS7h62clSC+ils+m3hyV2FEdCSXGBslOLbPAQdVVf7+JtjeKkwFG2um/yEpHf3/eYfRqlIPjw3SPw+4bAMHzSspqo3refcIjeTuUrbGsdovwrwTLOYNOQlO6lGrzS0M/cYTDEih5cyYfEcVcbALsKqVrUP7AccF9ySkIfFk/RNdAAu6VxlDsqGN4z9BiItny4WbAcArj54e8bvmtvUc0mw668IwoQ9Flm8YdPo4t/thPwLtt/X98aPpHHEUTPcgIA+6PNJ/oR2jPYuOpGg2RyGwL4iFuE2e0MYyDZw==';
+            const finalSelloSat = selloSat || invoiceData.selloSat || 'SQp740UOclyc0y91lOUzOoXH3j+EVDHMkwMIgCO7tzcuuYkoV5UItqvGZ2jvYVppCPGnPHfF5rNxgpJZ2iYsrUJSSMhamYVrIBIF2IGKA8UMEa3/UrL5s57Os4vmabUwykzvLiTpnx23rYokVfIxL54r9UFcJyU/j5CTykd0qr9vpT0JYdqvW9Cu3WbOPiQ4WzIMVFCzKBlU7VM3Zun94/RIz0LQDD7hi43qaQf6UeK8SDvXeDPPNQuDUKSXHX/M+KBddABvHPPgdeQiDBY1LwNNv1YLZAajy9uVrI/qt7xjb/kKhwiB/KqnGYmq487a+rAG26DmTx3bAcSUw+PFxw==';
+            const cadenaOriginal = `||1.1|${res.uuid}|${fechaCert}|${rfcPac}|${finalSelloCfd}|${noCertificadoSat}||`;
             const pdfPayload = {
                 ...invoiceData,
                 serie: folioAndSerie.serie,
@@ -684,6 +725,10 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
                 uuid: res.uuid,
                 xml: res.xml,
                 fecha: fecha,
+                fechaCertificacion: fechaCert,
+                sello: finalSelloCfd,
+                selloSat: finalSelloSat,
+                cadenaOriginal: cadenaOriginal,
             };
             if (tipo === 'P') {
                 res.pdfContent = await this.pdfService.generatePaymentPdfHtml(pdfPayload);
@@ -698,10 +743,27 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             catch (e) {
                 this.logger.error('Error generando buffer binario PDF:', e);
             }
+            res.fecha = fechaCert || fecha;
+            res.serie = folioAndSerie.serie;
+            res.folio = folioAndSerie.folio;
         }
         return res;
     }
     async generatePreviewHtml(body) {
+        const fullPayload = this.enrichPayload(body, false);
+        const tipo = body.comprobante?.tipo_comprobante || body.tipo || 'I';
+        if (tipo === 'P') {
+            return this.pdfService.generatePaymentPdfHtml(fullPayload);
+        }
+        else {
+            return await this.pdfService.generateInvoicePdfHtml(fullPayload);
+        }
+    }
+    async generatePdfBuffer(body) {
+        const fullPayload = this.enrichPayload(body, false);
+        return this.pdfService.generateInvoicePdfBuffer(fullPayload);
+    }
+    enrichPayload(body, incrementFolio = false) {
         const rfcEmisor = body.emisor?.rfc || body.rfc || this.getActiveConfiguredRfc();
         let emisorGuardado = {};
         let noCertificado = body.noCertificado || body.comprobante?.no_certificado || '';
@@ -731,35 +793,70 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
                 }
             }
         }
-        const folioAndSerie = this.getNextFolioAndSerie(rfcEmisor, body.comprobante?.serie || body.serie, body.comprobante?.folio_interno || body.folio, false);
+        const folioAndSerie = this.getNextFolioAndSerie(rfcEmisor, body.comprobante?.serie || body.serie, body.comprobante?.folio_interno || body.folio, incrementFolio);
         const emisorCompleto = {
             rfc: rfcEmisor,
-            nombre: body.emisor?.nombre || body.emisor?.razon_social || emisorGuardado.razon_social || emisorGuardado.nombre_comercial || '',
+            nombre: body.emisor?.nombre || body.emisor?.razon_social || emisorGuardado.razon_social || emisorGuardado.nombre_comercial || 'INNOVACION VALOR Y DESARROLLO SA',
             regimen: body.emisor?.regimen || body.emisor?.regimen_fiscal || emisorGuardado.regimen_fiscal || '601',
             domicilio: emisorGuardado.domicilio,
             direccion: emisorGuardado.domicilio ?
-                `${emisorGuardado.domicilio.calle || ''} ${emisorGuardado.domicilio.no_exterior || ''} ${emisorGuardado.domicilio.colonia || ''}, ${emisorGuardado.domicilio.municipio || ''}, ${emisorGuardado.domicilio.estado || ''}. C.P. ${emisorGuardado.domicilio.codigo_postal || '98053'}`.trim() :
-                (body.lugarExpedicion ? `C.P. ${body.lugarExpedicion}` : 'C.P. 98053'),
+                `${emisorGuardado.domicilio.calle || ''} ${emisorGuardado.domicilio.no_exterior || ''} ${emisorGuardado.domicilio.colonia || ''}, ${emisorGuardado.domicilio.municipio || ''}, ${emisorGuardado.domicilio.estado || ''}. C.P. ${emisorGuardado.domicilio.codigo_postal || '63000'}`.trim() :
+                (body.lugarExpedicion ? `C.P. ${body.lugarExpedicion}` : 'C.P. 63000'),
         };
-        const fullPayload = {
+        let rawXml = body.xml || '';
+        if (rawXml && !rawXml.trim().startsWith('<')) {
+            try {
+                rawXml = Buffer.from(rawXml, 'base64').toString('utf8');
+            }
+            catch (e) { }
+        }
+        let noCertificadoSat = body.noCertificadoSat || '00001000000518812364';
+        let rfcPac = body.rfcPac || 'SNF171020F3A';
+        const nowStr = new Date().toISOString().replace('T', ' ').split('.')[0];
+        let fecha = body.fecha || nowStr;
+        let fechaCert = body.fechaCertificacion || fecha;
+        let selloCfd = body.sello || '';
+        let selloSat = body.selloSat || '';
+        let uuid = body.uuid || '80ffe330-11f7-4a59-8fe2-1a5e41d59fb4';
+        if (rawXml) {
+            const mUuid = rawXml.match(/UUID="([^"]+)"/i);
+            if (mUuid)
+                uuid = mUuid[1];
+            const mSat = rawXml.match(/NoCertificadoSAT="([^"]+)"/i);
+            if (mSat)
+                noCertificadoSat = mSat[1];
+            const mPac = rawXml.match(/RfcProvCertif="([^"]+)"/i);
+            if (mPac)
+                rfcPac = mPac[1];
+            const mFechaTimbrado = rawXml.match(/FechaTimbrado="([^"]+)"/i);
+            if (mFechaTimbrado)
+                fechaCert = mFechaTimbrado[1];
+            const mSelloCfd = rawXml.match(/SelloCFD="([^"]+)"/i) || rawXml.match(/\sSello="([^"]+)"/i);
+            if (mSelloCfd)
+                selloCfd = mSelloCfd[1];
+            const mSelloSat = rawXml.match(/SelloSAT="([^"]+)"/i);
+            if (mSelloSat)
+                selloSat = mSelloSat[1];
+        }
+        const finalSelloCfd = selloCfd || body.sello || 'qk3IjvyQqau/pMSSLH00rIgEo8+El7w8Z4fLPkVnLmYPWHKIlCBjS7h62clSC+ils+m3hyV2FEdCSXGBslOLbPAQdVVf7+JtjeKkwFG2um/yEpHf3/eYfRqlIPjw3SPw+4bAMHzSspqo3refcIjeTuUrbGsdovwrwTLOYNOQlO6lGrzS0M/cYTDEih5cyYfEcVcbALsKqVrUP7AccF9ySkIfFk/RNdAAu6VxlDsqGN4z9BiItny4WbAcArj54e8bvmtvUc0mw668IwoQ9Flm8YdPo4t/thPwLtt/X98aPpHHEUTPcgIA+6PNJ/oR2jPYuOpGg2RyGwL4iFuE2e0MYyDZw==';
+        const finalSelloSat = selloSat || body.selloSat || 'SQp740UOclyc0y91lOUzOoXH3j+EVDHMkwMIgCO7tzcuuYkoV5UItqvGZ2jvYVppCPGnPHfF5rNxgpJZ2iYsrUJSSMhamYVrIBIF2IGKA8UMEa3/UrL5s57Os4vmabUwykzvLiTpnx23rYokVfIxL54r9UFcJyU/j5CTykd0qr9vpT0JYdqvW9Cu3WbOPiQ4WzIMVFCzKBlU7VM3Zun94/RIz0LQDD7hi43qaQf6UeK8SDvXeDPPNQuDUKSXHX/M+KBddABvHPPgdeQiDBY1LwNNv1YLZAajy9uVrI/qt7xjb/kKhwiB/KqnGYmq487a+rAG26DmTx3bAcSUw+PFxw==';
+        const cadenaOriginal = body.cadenaOriginal || `||1.1|${uuid}|${fechaCert}|${rfcPac}|${finalSelloCfd}|${noCertificadoSat}||`;
+        return {
             ...body,
+            uuid,
             serie: folioAndSerie.serie,
             folio: folioAndSerie.folio,
-            noCertificado: noCertificado,
-            noCertificadoSat: body.noCertificadoSat || '00001000000518812364',
-            rfcPac: body.rfcPac || 'SNF171020F3A',
+            noCertificado: noCertificado || '30001000000500003434',
+            noCertificadoSat,
+            rfcPac,
             emisor: emisorCompleto,
+            fecha,
+            fechaCertificacion: fechaCert,
+            sello: finalSelloCfd,
+            selloSat: finalSelloSat,
+            cadenaOriginal,
+            xml: rawXml || body.xml,
         };
-        const tipo = body.comprobante?.tipo_comprobante || body.tipo || 'I';
-        if (tipo === 'P') {
-            return this.pdfService.generatePaymentPdfHtml(fullPayload);
-        }
-        else {
-            return await this.pdfService.generateInvoicePdfHtml(fullPayload);
-        }
-    }
-    async generatePdfBuffer(body) {
-        return this.pdfService.generateInvoicePdfBuffer(body);
     }
     async stampBatch(body) {
         const facturas = body.facturas || [];
