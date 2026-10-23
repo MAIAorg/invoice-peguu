@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playground Simulador - Peguu Billing API</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(22, 30, 49, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent: #10b981;
+      --accent-error: #ef4444;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --input-bg: #111827;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 1.5rem;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+    }
+
+    .header {
+      max-width: 100%;
+      margin: 0 auto 1.5rem auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a5b4fc, #6366f1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header .badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      padding: 0.4rem 0.8rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .container {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 420px minmax(0, 1fr);
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .container { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      min-width: 0;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .preset-buttons {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-preset {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-preset:hover, .btn-preset.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .form-group {
+      margin-bottom: 0.8rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    select, input, textarea {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.6rem;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      transition: border-color 0.2s;
+    }
+
+    textarea {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      height: 320px;
+      resize: vertical;
+      line-height: 1.4;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn-send {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: white;
+      font-weight: 600;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-send:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .status-badge {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+    }
+
+    .status-badge.success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .status-badge.error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .status-badge.idle { background: rgba(156, 163, 175, 0.2); color: var(--text-muted); }
+
+    .code-output {
+      background: #060911;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      height: 360px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      white-space: pre-wrap;
+      word-break: break-all;
+      word-wrap: break-word;
+      color: #e5e7eb;
+      line-height: 1.4;
+    }
+
+    .uuid-box {
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px dashed var(--primary);
+      padding: 0.6rem 0.9rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      display: none;
+      word-break: break-all;
+    }
+
+    .uuid-box strong { color: #a5b4fc; }
+
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .btn-action {
+      flex: 1;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+
+    .btn-action.xml { background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.5); color: #34d399; }
+    .btn-action.xml:hover { background: rgba(16, 185, 129, 0.4); }
+    .btn-action.pdf { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); color: #f87171; }
+    .btn-action.pdf:hover { background: rgba(239, 68, 68, 0.4); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>⚡ Universal Billing API Simulator</h1>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.2rem;">Consola Interactiva - Soporte Dinámico CFDI 4.0 (Ingreso & Recibo de Pago 2.0)</p>
+    </div>
+    <div class="badge">● PAC Diverza Conectado</div>
+  </div>
+
+  <div class="container">
+    <!-- Panel Izquierdo: Petición -->
+    <div class="card">
+      <div class="card-title">📦 Configurar Petición (Payload)</div>
+
+      <div class="form-group">
+        <label>Origen / Plataforma Emisora</label>
+        <select id="origenSelect">
+          <option value="peguu_tienda">PeguuStore (Tienda en línea)</option>
+          <option value="peguu_erp">MagenttaOne (ERP Interno)</option>
+          <option value="gestiona_app">Gestiona Platform</option>
+        </select>
+      </div>
+
+      <div class="preset-buttons">
+        <button id="btnPresetConfigFull" class="btn-preset active" style="border-color: rgba(99, 102, 241, 0.6); color: #a5b4fc; font-weight: 700;" onclick="loadPreset('config_full', event)">📋 CONFIGURACIÓN DE FACTURACIÓN (Paso 1)</button>
+        <button id="btnPresetIngreso" class="btn-preset" onclick="loadPreset('ingreso', event)">🚀 Factura Ingreso (Paso 2)</button>
+        <button id="btnPresetMulti" class="btn-preset" style="border-color: rgba(245, 158, 11, 0.5); color: #fbbf24;" onclick="loadPreset('multiprod', event)">📚 Multi-Página (10 Conceptos)</button>
+        <button id="btnPresetGlobal" class="btn-preset" onclick="loadPreset('global', event)">🌐 Factura Global</button>
+        <button id="btnPresetLote" class="btn-preset" onclick="loadPreset('lote', event)">📦 Timbrado por Lote</button>
+        <button id="btnPresetSust" class="btn-preset" onclick="loadPreset('sustitucion', event)">🔄 Refacturación</button>
+      </div>
+
+      <!-- Dashboard de Configuración Completa en 7 Secciones Lógicas -->
+      <div id="fullConfigBlock" style="display:block; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+        <div style="font-size: 1.05rem; font-weight: 700; color: #a5b4fc; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+          <span>📋 CONFIGURACIÓN DE FACTURACIÓN</span>
+          <span style="font-size: 0.75rem; color: #10b981; background: rgba(16,185,129,0.15); padding: 0.2rem 0.6rem; border-radius: 6px;">7 Secciones Oficiales</span>
+        </div>
+
+        <!-- I) Datos del Emisor -->
+        <div style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #818cf8; font-size: 0.85rem; margin-bottom: 0.6rem;">I) Datos del Emisor</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
+            <div class="form-group"><label>Nombre Comercial</label><input type="text" id="cfgNombreComercial" value="" placeholder="ej. MAYORGA MARKETING"></div>
+            <div class="form-group"><label>Nombre o Razón Social</label><input type="text" id="cfgRazonSocial" value="" placeholder="ej. MAYORGA MARKETING SA DE CV"></div>
+            <div class="form-group"><label>RFC</label><input type="text" id="cfgRfc" value="" placeholder="ej. MMA1902216N2"></div>
+            <div class="form-group"><label>Régimen Fiscal</label><input type="text" id="cfgRegimenFiscal" value="" placeholder="ej. 601"></div>
+            <div class="form-group"><label>Calle</label><input type="text" id="cfgCalle" value="" placeholder="ej. Av. Nezahualcóyotl"></div>
+            <div class="form-group"><label>Número Exterior</label><input type="text" id="cfgNoExt" value="" placeholder="ej. 310"></div>
+            <div class="form-group"><label>Número Interior (opcional)</label><input type="text" id="cfgNoInt" value="" placeholder="ej. Piso 2"></div>
+            <div class="form-group"><label>Código Postal</label><input type="text" id="cfgCP" value="" placeholder="ej. 98053"></div>
+            <div class="form-group"><label>Colonia</label><input type="text" id="cfgColonia" value="" placeholder="ej. CNOP"></div>
+            <div class="form-group"><label>Localidad (opcional)</label><input type="text" id="cfgLocalidad" value="" placeholder="ej. Zacatecas"></div>
+            <div class="form-group"><label>Municipio</label><input type="text" id="cfgMunicipio" value="" placeholder="ej. Zacatecas"></div>
+            <div class="form-group"><label>Estado</label><input type="text" id="cfgEstado" value="" placeholder="ej. Zacatecas"></div>
+            <div class="form-group"><label>País</label><input type="text" id="cfgPais" value="" placeholder="ej. MÉXICO"></div>
+            <div class="form-group"><label>Correo para recibir copia de CFDIs</label><input type="email" id="cfgEmail" value="" placeholder="ej. admin@peguu.com"></div>
+          </div>
+        </div>
+
+        <!-- II) Datos de Comprobantes Fiscales Digitales (CSD) -->
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #34d399; font-size: 0.85rem; margin-bottom: 0.6rem;">II) Datos de Comprobantes Fiscales Digitales (CSD)</div>
+          <div class="form-group"><label>Archivo Certificado Sello Digital (.cer)</label><input type="file" id="fullCerFile" accept=".cer"></div>
+          <div class="form-group"><label>Archivo Llave privada (.key)</label><input type="file" id="fullKeyFile" accept=".key"></div>
+          <div class="form-group"><label>Contraseña llave privada</label><input type="password" id="fullCsdPass" value="" placeholder="Ingrese la contraseña de la llave CSD"></div>
+        </div>
+
+        <!-- III) Datos de PAC -->
+        <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #fbbf24; font-size: 0.85rem; margin-bottom: 0.6rem;">III) Datos de PAC (Proveedor Autorizado de Certificación)</div>
+          <div class="form-group"><label>Proveedor Autorizado de Certificación (PAC)</label><input type="text" id="fullPacNombre" value="" placeholder="Diverza / Timbre Fiscal"></div>
+          <div class="form-group"><label>ID Cliente / Usuario</label><input type="text" id="fullPacClientId" value="" placeholder="Ingrese su Client ID otorgado por Diverza"></div>
+          <div class="form-group"><label>Token / Contraseña</label><input type="text" id="fullPacToken" value="" placeholder="Ingrese su Token activo de Diverza"></div>
+          <div class="form-group"><label>URL de Conexión PAC</label><input type="text" id="fullPacStampUrl" value="" placeholder="https://servicios.diverza.com/api/v2/documents/stamp"></div>
+          <div class="form-group"><label>URL de Cancelación PAC</label><input type="text" id="fullPacCancelUrl" value="" placeholder="https://servicios.diverza.com/api/v2/documents/UUID/cancel"></div>
+        </div>
+
+        <!-- IV) Datos de Serie y Folio por tipo de CFDI -->
+        <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #60a5fa; font-size: 0.85rem; margin-bottom: 0.6rem;">IV) Datos de Serie y Folio por tipo de CFDI</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
+            <div class="form-group"><label>Serie de CFDI INGRESO (opcional)</label><input type="text" id="fullSerie" value="" placeholder="ej. F"></div>
+            <div class="form-group"><label>Núm. de Folio Siguiente de CFDI INGRESO</label><input type="number" id="fullFolio" value="" placeholder="ej. 101"></div>
+          </div>
+        </div>
+
+        <!-- V) Datos de Lugar de Emisión -->
+        <div style="background: rgba(236, 72, 153, 0.05); border: 1px solid rgba(236, 72, 153, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #f472b6; font-size: 0.85rem; margin-bottom: 0.6rem;">V) Datos de Lugar de Emisión</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem;">
+            <div class="form-group"><label>Ciudad</label><input type="text" id="fullLugarCiudad" value="" placeholder="ej. Zacatecas"></div>
+            <div class="form-group"><label>Estado</label><input type="text" id="fullLugarEstado" value="" placeholder="ej. Zacatecas"></div>
+            <div class="form-group"><label>Código Postal</label><input type="text" id="fullLugarCP" value="" placeholder="ej. 98053"></div>
+          </div>
+        </div>
+
+        <!-- VI) Configuración de Impuestos Traslados/Retenidos -->
+        <div style="background: rgba(168, 85, 247, 0.05); border: 1px solid rgba(168, 85, 247, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #c084fc; font-size: 0.85rem; margin-bottom: 0.6rem;">VI) Configuración de Impuestos Traslados/Retenidos</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem;">
+            <div class="form-group"><label>IVA Traslado (Valor en %)</label><input type="number" step="0.01" id="fullIvaTraslado" value="" placeholder="ej. 16.00"></div>
+            <div class="form-group"><label>IVA Retenido (Valor en %)</label><input type="number" step="0.01" id="fullIvaRetenido" value="" placeholder="ej. 0.00"></div>
+            <div class="form-group"><label>ISR Retenido (Valor en %)</label><input type="number" step="0.01" id="fullIsrRetenido" value="" placeholder="ej. 0.00"></div>
+          </div>
+        </div>
+
+        <!-- VII) Parámetros Estándar CFDI Ingreso -->
+        <div style="background: rgba(20, 184, 166, 0.05); border: 1px solid rgba(20, 184, 166, 0.2); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 600; color: #2dd4bf; font-size: 0.85rem; margin-bottom: 0.6rem;">VII) Parámetros Estándar CFDI Ingreso</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem;">
+            <div class="form-group"><label>Uso CFDI</label><input type="text" id="fullParamUso" value="" placeholder="ej. G03"></div>
+            <div class="form-group"><label>Forma de Pago</label><input type="text" id="fullParamForma" value="" placeholder="ej. 99"></div>
+            <div class="form-group"><label>Método de Pago</label><input type="text" id="fullParamMetodo" value="" placeholder="ej. PPD"></div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-send" style="background: linear-gradient(135deg, #10b981, #059669); font-size: 0.95rem; padding: 0.85rem; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);" onclick="saveFullConfiguration()">
+          <span>💾 GUARDAR CONFIGURACIÓN COMPLETA DE FACTURACIÓN</span>
+        </button>
+      </div>
+
+      <div class="form-group" id="jsonGroupBlock">
+        <label>Cuerpo del JSON (Editable)</label>
+        <textarea id="jsonEditor"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button id="btnSendMain" class="btn-send" style="flex: 2;" onclick="sendInvoice()">
+          <span>🚀 Enviar a Timbrar</span>
+        </button>
+        <button type="button" class="btn-send" style="flex: 1; background: linear-gradient(135deg, #6366f1, #4f46e5); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);" onclick="previewHtmlDirect()">
+          <span>👁️ Vista Previa HTML</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Panel Derecho: Respuesta -->
+    <div class="card">
+      <div class="response-header">
+        <div class="card-title" style="margin:0;">📜 Respuesta del Servidor</div>
+        <div id="statusBadge" class="status-badge idle">Esperando envío</div>
+      </div>
+
+      <div id="uuidBox" class="uuid-box">
+        <strong>UUID SAT:</strong> <span id="uuidVal"></span>
+      </div>
+
+      <div id="jsonResponse" class="code-output">// Aquí aparecerá el resultado devuelto por Diverza...</div>
+
+      <div id="actionButtons" class="action-buttons" style="display: none;">
+        <button class="btn-action xml" onclick="downloadXML()">📥 Descargar XML Firmado</button>
+        <button class="btn-action pdf" onclick="openPDFPreview()">📄 Ver Documento PDF (.pdf)</button>
+        <button class="btn-action pdf" style="background: #0284c7;" onclick="downloadPDFFile()">💾 Descargar Archivo .PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let lastResponseData = null;
+
+    const presets = {
+      ingreso: {
+        origen: 'peguu_tienda',
+        receptor: {
+          rfc: 'IXS7607092R5',
+          razon_social: 'INTERNACIONAL XIMBO Y SABORES SA DE CV',
+          codigo_postal: '63000',
+          regimen_fiscal: '601',
+          uso_cfdi: 'G03',
+          email: 'facturas@ximbo.com'
+        },
+        comprobante: {
+          tipo_comprobante: 'I',
+          forma_pago: '04',
+          metodo_pago: 'PUE',
+          moneda: 'MXN',
+          subtotal: 8038.54,
+          total: 9324.71,
+          conceptos: [
+            {
+              clave_prod_serv: '55121715',
+              cantidad: 2000,
+              clave_unidad: 'H87',
+              descripcion: 'Holográfico - etiquetas Peguu',
+              valor_unitario: 4.01927,
+              importe: 8038.54
+            }
+          ]
+        }
+      },
+      multiprod: {
+        origen: 'peguu_tienda',
+        receptor: {
+          rfc: 'IXS7607092R5',
+          razon_social: 'INTERNACIONAL XIMBO Y SABORES SA DE CV',
+          codigo_postal: '63000',
+          regimen_fiscal: '601',
+          uso_cfdi: 'G03',
+          email: 'facturas@ximbo.com'
+        },
+        comprobante: {
+          tipo_comprobante: 'I',
+          forma_pago: '04',
+          metodo_pago: 'PUE',
+          moneda: 'MXN',
+          subtotal: 45250.00,
+          total: 52490.00,
+          conceptos: [
+            { clave_prod_serv: '55121715', cantidad: 1500, clave_unidad: 'H87', descripcion: 'Etiquetas Holográficas Peguu Standard 5x5cm', valor_unitario: 5.50, importe: 8250.00 },
+            { clave_prod_serv: '55121715', cantidad: 800, clave_unidad: 'H87', descripcion: 'Etiquetas Térmicas Directas 4x6 pulg', valor_unitario: 4.25, importe: 3400.00 },
+            { clave_prod_serv: '55121600', cantidad: 50, clave_unidad: 'H87', descripcion: 'Rollos de Cinta Transparente de Empaque 48mm x 100m', valor_unitario: 48.00, importe: 2400.00 },
+            { clave_prod_serv: '55121715', cantidad: 1200, clave_unidad: 'H87', descripcion: 'Etiquetas de Seguridad VOID Personalizadas con Código QR', valor_unitario: 6.80, importe: 8160.00 },
+            { clave_prod_serv: '55121618', cantidad: 300, clave_unidad: 'H87', descripcion: 'Cajas de Cartón Corrugado Doble 40x30x30cm', valor_unitario: 22.50, importe: 6750.00 },
+            { clave_prod_serv: '44102400', cantidad: 5, clave_unidad: 'H87', descripcion: 'Impresoras Industriales de Etiquetas Térmicas Zebra ZD421', valor_unitario: 2100.00, importe: 10500.00 },
+            { clave_prod_serv: '44103100', cantidad: 20, clave_unidad: 'H87', descripcion: 'Ribbons de Cera/Resina Premium 110mm x 300m', valor_unitario: 115.00, importe: 2300.00 },
+            { clave_prod_serv: '55121715', cantidad: 500, clave_unidad: 'H87', descripcion: 'Etiquetas Metálicas de Poliéster Plateado Mate Alta Adhesión', valor_unitario: 3.50, importe: 1750.00 },
+            { clave_prod_serv: '43211700', cantidad: 10, clave_unidad: 'H87', descripcion: 'Lectores de Código de Barras 2D Inalámbricos USB con Base', valor_unitario: 120.00, importe: 1200.00 },
+            { clave_prod_serv: '81111500', cantidad: 1, clave_unidad: 'E48', descripcion: 'Servicio de Calibración, Configuración e Instalación en Planta', valor_unitario: 540.00, importe: 540.00 }
+          ]
+        }
+      },
+      pago: {
+        origen: 'peguu_erp',
+        receptor: {
+          rfc: 'IXS7607092R5',
+          razon_social: 'INTERNACIONAL XIMBO Y SABORES SA DE CV',
+          codigo_postal: '63000',
+          regimen_fiscal: '601'
+        },
+        comprobante: {
+          tipo_comprobante: 'P'
+        },
+        pago: {
+          monto: 9324.71,
+          base: 8038.54,
+          iva: 1286.17,
+          forma_pago: '04',
+          uuid_relacionado: 'cb15fab1-bc2c-48e3-9b1b-e33ce61ee493',
+          num_parcialidad: 1
+        }
+      },
+      global: {
+        origen: 'peguu_tienda',
+        informacion_global: {
+          periodicidad: '01',
+          meses: '07',
+          anio: 2026
+        },
+        receptor: {
+          rfc: 'XAXX010101000',
+          razon_social: 'PUBLICO EN GENERAL',
+          codigo_postal: '63000',
+          regimen_fiscal: '616',
+          uso_cfdi: 'S01'
+        },
+        comprobante: {
+          tipo_comprobante: 'I',
+          forma_pago: '01',
+          metodo_pago: 'PUE',
+          moneda: 'MXN',
+          subtotal: 8038.54,
+          total: 9324.71,
+          conceptos: [
+            {
+              clave_prod_serv: '01010101',
+              cantidad: 1,
+              clave_unidad: 'ACT',
+              descripcion: 'Venta ticket 10491',
+              valor_unitario: 8038.54,
+              importe: 8038.54
+            }
+          ]
+        }
+      },
+      lote: {
+        origen: 'peguu_erp',
+        facturas: [
+          {
+            receptor: {
+              rfc: 'IXS7607092R5',
+              razon_social: 'INTERNACIONAL XIMBO Y SABORES SA DE CV',
+              codigo_postal: '63000',
+              regimen_fiscal: '601',
+              uso_cfdi: 'G03'
+            },
+            comprobante: {
+              tipo_comprobante: 'I',
+              subtotal: 8038.54,
+              total: 9324.71,
+              conceptos: [{ clave_prod_serv: '55121715', cantidad: 2000, clave_unidad: 'H87', descripcion: 'Etiquetas Peguu Lote 1', valor_unitario: 4.01927, importe: 8038.54 }]
+            }
+          },
+          {
+            receptor: {
+              rfc: 'IXS7607092R5',
+              razon_social: 'INTERNACIONAL XIMBO Y SABORES SA DE CV',
+              codigo_postal: '63000',
+              regimen_fiscal: '601',
+              uso_cfdi: 'G03'
+            },
+            comprobante: {
+              tipo_comprobante: 'I',
+              subtotal: 8038.54,
+              total: 9324.71,
+              conceptos: [{ clave_prod_serv: '55121715', cantidad: 2000, clave_unidad: 'H87', descripcion: 'Etiquetas Peguu Lote 2', valor_unitario: 4.01927, importe: 8038.54 }]
+            }
+          }
+        ]
+      },
+      sustitucion: {
+        origen: 'peguu_tienda',
+        uuid_sustitucion: 'cb15fab1-bc2c-48e3-9b1b-e33ce61ee493',
+        receptor: {
+          rfc: 'IXS7607092R5',
+          razon_social: 'INTERNACIONAL XIMBO Y SABORES SA DE CV',
+          codigo_postal: '63000',
+          regimen_fiscal: '601',
+          uso_cfdi: 'G03'
+        },
+        comprobante: {
+          tipo_comprobante: 'I',
+          forma_pago: '04',
+          metodo_pago: 'PUE',
+          moneda: 'MXN',
+          subtotal: 8038.54,
+          total: 9324.71,
+          conceptos: [
+            {
+              clave_prod_serv: '55121715',
+              cantidad: 2000,
+              clave_unidad: 'H87',
+              descripcion: 'Holográfico - etiquetas Peguu (Sustitución)',
+              valor_unitario: 4.01927,
+              importe: 8038.54
+            }
+          ]
+        }
+      },
+      csd: {
+        action: 'configurar_csd',
+        rfc: 'IVD920810GU2',
+        password_csd: '12345678a',
+        cer_base64: 'MIIFtjCCAZ6gAwIBAgIUMzAwMDAxMDAwMDA1MDAwMDM0MzQwDQYJKoZIhvcNAQELBQAwggErMQ8wDQYDVQQDDAZBQkFVVE8x...',
+        key_base64: 'MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC5J0k5v/V9u6H6...'
+      },
+      pac: {
+        action: 'configurar_pac',
+        client_id: '759412',
+        token: '$2b$12$IS3EcFIDSicPMA3xNvaiYe9P9Jp.EamzkQGfzRPefdWQJV/TPVy7K',
+        stamp_url: 'https://servicios.diverza.com/api/v2/documents/stamp',
+        cancel_url: 'https://servicios.diverza.com/api/v2/documents/UUID/cancel'
+      }
+    };
+
+    function loadPreset(type, evt) {
+      document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
+      if (evt && evt.target) {
+        evt.target.classList.add('active');
+      } else {
+        const btnMap = { config_full: 'btnPresetConfigFull', ingreso: 'btnPresetIngreso', pago: 'btnPresetPago', global: 'btnPresetGlobal', lote: 'btnPresetLote', sustitucion: 'btnPresetSust' };
+        if (btnMap[type] && document.getElementById(btnMap[type])) {
+          document.getElementById(btnMap[type]).classList.add('active');
+        }
+      }
+
+      const fullConfigBlock = document.getElementById('fullConfigBlock');
+      const jsonGroupBlock = document.getElementById('jsonGroupBlock');
+      const btnSendMain = document.getElementById('btnSendMain');
+
+      if (type === 'config_full') {
+        fullConfigBlock.style.display = 'block';
+        jsonGroupBlock.style.display = 'none';
+        btnSendMain.style.display = 'none';
+      } else {
+        fullConfigBlock.style.display = 'none';
+        jsonGroupBlock.style.display = 'block';
+        btnSendMain.style.display = 'flex';
+      }
+
+      const data = presets[type];
+      if (data && data.origen) document.getElementById('origenSelect').value = data.origen;
+      if (data) document.getElementById('jsonEditor').value = JSON.stringify(data, null, 2);
+    }
+
+    async function saveFullConfiguration() {
+      const rfc = document.getElementById('cfgRfc').value.trim();
+      const razon_social = document.getElementById('cfgRazonSocial').value.trim();
+      const nombre_comercial = document.getElementById('cfgNombreComercial').value.trim();
+      const regimen_fiscal = document.getElementById('cfgRegimenFiscal').value.trim();
+      const email = document.getElementById('cfgEmail').value.trim();
+
+      if (!rfc) return alert('Por favor ingresa el RFC del Emisor en la Sección I');
+      if (!razon_social) return alert('Por favor ingresa la Razón Social en la Sección I');
+
+      const domicilio = {
+        calle: document.getElementById('cfgCalle').value.trim(),
+        no_exterior: document.getElementById('cfgNoExt').value.trim(),
+        no_interior: document.getElementById('cfgNoInt').value.trim(),
+        codigo_postal: document.getElementById('cfgCP').value.trim(),
+        colonia: document.getElementById('cfgColonia').value.trim(),
+        localidad: document.getElementById('cfgLocalidad').value.trim(),
+        municipio: document.getElementById('cfgMunicipio').value.trim(),
+        estado: document.getElementById('cfgEstado').value.trim(),
+        pais: document.getElementById('cfgPais').value.trim(),
+      };
+
+      const lugar_expedicion = {
+        ciudad: document.getElementById('fullLugarCiudad').value.trim(),
+        estado: document.getElementById('fullLugarEstado').value.trim(),
+        codigo_postal: document.getElementById('fullLugarCP').value.trim(),
+      };
+
+      const impuestos_default = {
+        iva_traslado_pct: parseFloat(document.getElementById('fullIvaTraslado').value) || 16.0,
+        iva_retenido_pct: parseFloat(document.getElementById('fullIvaRetenido').value) || 0.0,
+        isr_retenido_pct: parseFloat(document.getElementById('fullIsrRetenido').value) || 0.0,
+      };
+
+      const parametros_default = {
+        uso_cfdi: document.getElementById('fullParamUso').value.trim(),
+        forma_pago: document.getElementById('fullParamForma').value.trim(),
+        metodo_pago: document.getElementById('fullParamMetodo').value.trim(),
+      };
+
+      const badge = document.getElementById('statusBadge');
+      const output = document.getElementById('jsonResponse');
+      badge.className = 'status-badge idle';
+      badge.textContent = 'Guardando Configuración...';
+
+      const results = {};
+
+      try {
+        // 1. Guardar Emisor, Domicilio, Lugar e Impuestos
+        const resEmisor = await fetch('/api/v1/facturas/configurar-emisor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rfc, razon_social, nombre_comercial, regimen_fiscal, email,
+            domicilio, lugar_expedicion, impuestos_default, parametros_default
+          })
+        });
+        results.emisor = await resEmisor.json();
+
+        // 2. Guardar CSD si se adjuntaron archivos
+        const cerFile = document.getElementById('fullCerFile').files[0];
+        const keyFile = document.getElementById('fullKeyFile').files[0];
+        const csdPass = document.getElementById('fullCsdPass').value.trim();
+
+        if (cerFile && keyFile && csdPass) {
+          const formData = new FormData();
+          formData.append('rfc', rfc);
+          formData.append('cer', cerFile);
+          formData.append('key', keyFile);
+          formData.append('password_csd', csdPass);
+
+          const resCsd = await fetch('/api/v1/facturas/configurar-csd', {
+            method: 'POST',
+            body: formData
+          });
+          results.csd = await resCsd.json();
+        } else {
+          results.csd = { status: 'OMITIDO', message: 'No se enviaron nuevos archivos CSD en esta actualización.' };
+        }
+
+        // 3. Guardar PAC si se ingresaron credenciales
+        const pacClientId = document.getElementById('fullPacClientId').value.trim();
+        const pacToken = document.getElementById('fullPacToken').value.trim();
+        const pacStampUrl = document.getElementById('fullPacStampUrl').value.trim();
+        const pacCancelUrl = document.getElementById('fullPacCancelUrl').value.trim();
+
+        if (pacClientId && pacToken) {
+          const resPac = await fetch('/api/v1/facturas/configurar-pac', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: pacClientId, token: pacToken, stamp_url: pacStampUrl, cancel_url: pacCancelUrl })
+          });
+          results.pac = await resPac.json();
+        } else {
+          results.pac = { status: 'OMITIDO', message: 'No se actualizaron credenciales de PAC.' };
+        }
+
+        // 4. Guardar Serie y Folio
+        const serie = document.getElementById('fullSerie').value.trim();
+        const folio_inicial = parseInt(document.getElementById('fullFolio').value) || 101;
+        const resFolios = await fetch('/api/v1/facturas/configurar-folios', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rfc, serie, folio_inicial })
+        });
+        results.folios = await resFolios.json();
+
+        badge.className = 'status-badge success';
+        badge.textContent = '200 OK - CONFIGURACIÓN COMPLETA GUARDADA';
+        output.textContent = JSON.stringify(results, null, 2);
+
+      } catch (e) {
+        badge.className = 'status-badge error';
+        badge.textContent = 'ERROR EN CONFIGURACIÓN';
+        output.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    async function autoLoadConfiguration() {
+      try {
+        const res = await fetch('/api/v1/facturas/configuracion');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data) return;
+
+        if (data.rfc) document.getElementById('cfgRfc').value = data.rfc;
+
+        if (data.emisor) {
+          if (data.emisor.nombre_comercial) document.getElementById('cfgNombreComercial').value = data.emisor.nombre_comercial;
+          if (data.emisor.razon_social) document.getElementById('cfgRazonSocial').value = data.emisor.razon_social;
+          if (data.emisor.regimen_fiscal) document.getElementById('cfgRegimenFiscal').value = data.emisor.regimen_fiscal;
+          if (data.emisor.email) document.getElementById('cfgEmail').value = data.emisor.email;
+
+          if (data.emisor.domicilio) {
+            const dom = data.emisor.domicilio;
+            if (dom.calle) document.getElementById('cfgCalle').value = dom.calle;
+            if (dom.no_exterior) document.getElementById('cfgNoExt').value = dom.no_exterior;
+            if (dom.no_interior) document.getElementById('cfgNoInt').value = dom.no_interior;
+            if (dom.codigo_postal) document.getElementById('cfgCP').value = dom.codigo_postal;
+            if (dom.colonia) document.getElementById('cfgColonia').value = dom.colonia;
+            if (dom.localidad) document.getElementById('cfgLocalidad').value = dom.localidad;
+            if (dom.municipio) document.getElementById('cfgMunicipio').value = dom.municipio;
+            if (dom.estado) document.getElementById('cfgEstado').value = dom.estado;
+            if (dom.pais) document.getElementById('cfgPais').value = dom.pais;
+          }
+
+          if (data.emisor.lugar_expedicion) {
+            const lug = data.emisor.lugar_expedicion;
+            if (lug.ciudad) document.getElementById('fullLugarCiudad').value = lug.ciudad;
+            if (lug.estado) document.getElementById('fullLugarEstado').value = lug.estado;
+            if (lug.codigo_postal) document.getElementById('fullLugarCP').value = lug.codigo_postal;
+          }
+
+          if (data.emisor.impuestos_default) {
+            const imp = data.emisor.impuestos_default;
+            if (imp.iva_traslado_pct !== undefined) document.getElementById('fullIvaTraslado').value = imp.iva_traslado_pct;
+            if (imp.iva_retenido_pct !== undefined) document.getElementById('fullIvaRetenido').value = imp.iva_retenido_pct;
+            if (imp.isr_retenido_pct !== undefined) document.getElementById('fullIsrRetenido').value = imp.isr_retenido_pct;
+          }
+
+          if (data.emisor.parametros_default) {
+            const par = data.emisor.parametros_default;
+            if (par.uso_cfdi) document.getElementById('fullParamUso').value = par.uso_cfdi;
+            if (par.forma_pago) document.getElementById('fullParamForma').value = par.forma_pago;
+            if (par.metodo_pago) document.getElementById('fullParamMetodo').value = par.metodo_pago;
+          }
+        }
+
+        if (data.pac) {
+          if (data.pac.client_id) document.getElementById('fullPacClientId').value = data.pac.client_id;
+          if (data.pac.token) document.getElementById('fullPacToken').value = data.pac.token;
+          if (data.pac.stamp_url) document.getElementById('fullPacStampUrl').value = data.pac.stamp_url;
+          if (data.pac.cancel_url) document.getElementById('fullPacCancelUrl').value = data.pac.cancel_url;
+        }
+
+        if (data.folios) {
+          if (data.folios.serie) document.getElementById('fullSerie').value = data.folios.serie;
+          if (data.folios.siguiente_folio) document.getElementById('fullFolio').value = data.folios.siguiente_folio;
+        }
+      } catch (e) {
+        console.warn('No se pudo auto-cargar la configuración previa:', e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', autoLoadConfiguration);
+
+    async function processAndSendPacConfig() {
+      const client_id = document.getElementById('pacClientIdInput').value.trim();
+      const token = document.getElementById('pacTokenInput').value.trim();
+      const stamp_url = document.getElementById('pacStampUrlInput').value.trim();
+      const cancel_url = document.getElementById('pacCancelUrlInput').value.trim();
+
+      const payload = {
+        action: 'configurar_pac',
+        client_id,
+        token,
+        stamp_url,
+        cancel_url
+      };
+
+      document.getElementById('jsonEditor').value = JSON.stringify(payload, null, 2);
+      sendInvoice();
+    }
+
+    async function processAndSendCsdFiles() {
+      const rfc = document.getElementById('csdRfcInput').value.trim();
+      const password = document.getElementById('csdPassInput').value.trim();
+      const cerFile = document.getElementById('csdCerInput').files[0];
+      const keyFile = document.getElementById('csdKeyInput').files[0];
+
+      if (!rfc) return alert('Por favor ingresa el RFC del Emisor');
+      if (!password) return alert('Por favor ingresa la contraseña del CSD');
+
+      let cerBase64 = '';
+      let keyBase64 = '';
+
+      if (cerFile && keyFile) {
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = error => reject(error);
+        });
+
+        try {
+          cerBase64 = await fileToBase64(cerFile);
+          keyBase64 = await fileToBase64(keyFile);
+        } catch (e) {
+          return alert('Error leyendo archivos CSD: ' + e.message);
+        }
+      } else {
+        const demo = presets.csd;
+        cerBase64 = demo.cer_base64;
+        keyBase64 = demo.key_base64;
+      }
+
+      const payload = {
+        action: 'configurar_csd',
+        rfc: rfc,
+        cer_base64: cerBase64,
+        key_base64: keyBase64,
+        password_csd: password
+      };
+
+      document.getElementById('jsonEditor').value = JSON.stringify(payload, null, 2);
+      sendInvoice();
+    }
+
+    async function sendInvoice() {
+      const badge = document.getElementById('statusBadge');
+      const output = document.getElementById('jsonResponse');
+      const uuidBox = document.getElementById('uuidBox');
+      const uuidVal = document.getElementById('uuidVal');
+      const actionButtons = document.getElementById('actionButtons');
+
+      badge.className = 'status-badge idle';
+      badge.textContent = 'Enviando...';
+      output.textContent = 'Procesando petición con el servidor...';
+      uuidBox.style.display = 'none';
+      actionButtons.style.display = 'none';
+
+      try {
+        const rawJson = document.getElementById('jsonEditor').value;
+        const payload = JSON.parse(rawJson);
+        
+        const isCsdAction = (payload.action === 'configurar_csd');
+        const isPacAction = (payload.action === 'configurar_pac');
+        const isBatchAction = (payload.facturas && Array.isArray(payload.facturas));
+
+        let endpoint = '/api/v1/facturas/timbrar';
+        if (isCsdAction) endpoint = '/api/v1/facturas/configurar-csd';
+        else if (isPacAction) endpoint = '/api/v1/facturas/configurar-pac';
+        else if (isBatchAction) endpoint = '/api/v1/facturas/timbrar-lote';
+
+        if (!isCsdAction && !isPacAction) {
+          payload.origen = document.getElementById('origenSelect').value;
+          const currentRfc = document.getElementById('cfgRfc').value.trim();
+          if (currentRfc) {
+            if (!payload.emisor) payload.emisor = {};
+            if (!payload.emisor.rfc && !payload.rfc) {
+              payload.emisor.rfc = currentRfc;
+            }
+          }
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        lastResponseData = data;
+        output.textContent = JSON.stringify(data, null, 2);
+
+        if (isCsdAction && data.success) {
+          badge.className = 'status-badge success';
+          badge.textContent = '200 OK - CSD CONFIGURADO';
+        } else if (isPacAction && data.success) {
+          badge.className = 'status-badge success';
+          badge.textContent = '200 OK - PAC ACTIVADO';
+        } else if (data.status === 'STAMPED' || (data.uuid && data.uuid !== '')) {
+          badge.className = 'status-badge success';
+          badge.textContent = '200 OK - TIMBRADO EXITOSO';
+          uuidVal.textContent = data.uuid;
+          uuidBox.style.display = 'block';
+          actionButtons.style.display = 'flex';
+        } else {
+          badge.className = 'status-badge error';
+          badge.textContent = 'ERROR';
+        }
+      } catch (err) {
+        badge.className = 'status-badge error';
+        badge.textContent = 'ERROR HTTP';
+        output.textContent = 'Error de conexión: ' + err.message;
+      }
+    }
+
+    function getDocumentFilename(ext) {
+      if (!lastResponseData) return 'factura.' + ext;
+      const serie = lastResponseData.serie || 'PGU';
+      const folio = lastResponseData.folio || '1';
+      const uuid = lastResponseData.uuid || '';
+      return uuid ? `Factura_${serie}-${folio}_${uuid}.${ext}` : `Factura_${serie}-${folio}.${ext}`;
+    }
+
+    function downloadXML() {
+      if (!lastResponseData || !lastResponseData.xml) return alert('No hay XML disponible para descargar');
+      try {
+        let xmlContent = lastResponseData.xml;
+        if (typeof xmlContent === 'string' && !xmlContent.trim().startsWith('<')) {
+          try {
+            xmlContent = atob(xmlContent);
+          } catch (e) {}
+        }
+        const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = getDocumentFilename('xml');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch(e) {
+        alert('Error al descargar XML: ' + e.message);
+      }
+    }
+
+    function numeroALetras(amount, moneda = 'PESOS') {
+      const UNIDADES = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+      const ESPECIALES = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISÉIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
+      const DECENAS = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+      const CENTENAS = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+      const toWords = (n) => {
+        if (n === 0) return 'CERO';
+        let r = '';
+        if (n >= 1000000) {
+          const m = Math.floor(n / 1000000);
+          r += (m === 1) ? 'UN MILLÓN ' : toWords(m) + ' MILLONES ';
+          n %= 1000000;
+        }
+        if (n >= 1000) {
+          const k = Math.floor(n / 1000);
+          r += (k === 1) ? 'MIL ' : toWords(k) + ' MIL ';
+          n %= 1000;
+        }
+        if (n >= 100) {
+          if (n === 100) r += 'CIEN ';
+          else r += CENTENAS[Math.floor(n / 100)] + ' ';
+          n %= 100;
+        }
+        if (n >= 20) {
+          r += DECENAS[Math.floor(n / 10)];
+          if (n % 10 > 0) r += ' Y ' + UNIDADES[n % 10];
+          r += ' ';
+        } else if (n >= 10) {
+          r += ESPECIALES[n - 10] + ' ';
+        } else if (n > 0) {
+          r += UNIDADES[n] + ' ';
+        }
+        return r.trim();
+      };
+
+      const parts = Math.abs(amount).toFixed(2).split('.');
+      const entero = parseInt(parts[0]);
+      const centavos = parts[1];
+      const palabras = (entero === 0) ? 'CERO' : toWords(entero);
+      const currencyName = moneda.toUpperCase() === 'USD' ? 'DÓLARES' : 'PESOS';
+      const suffix = moneda.toUpperCase() === 'USD' ? 'USD' : 'M.N.';
+
+      return `(${palabras} ${currencyName} ${centavos}/100 ${suffix})`;
+    }
+
+    async function previewHtmlDirect() {
+      try {
+        const payload = JSON.parse(document.getElementById('jsonEditor').value);
+        if (lastResponseData && lastResponseData.uuid) payload.uuid = lastResponseData.uuid;
+        
+        const res = await fetch('/api/v1/facturas/vista-previa-html', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.html) {
+          const w = window.open("", "_blank");
+          w.document.write(data.html);
+          w.document.close();
+        } else {
+          alert('Error al generar la vista previa HTML: No se recibió HTML');
+        }
+      } catch (err) {
+        alert('Error en formato JSON o de conexión al solicitar vista previa HTML: ' + err.message);
+      }
+    }
+
+    async function openPDFPreview() {
+      if (!lastResponseData || !lastResponseData.uuid) return alert('No hay comprobante timbrado para generar el PDF');
+      
+      try {
+        const serie = lastResponseData.serie || 'PGU';
+        const folio = lastResponseData.folio || '1';
+        const titleName = `Factura ${serie}-${folio} - ${lastResponseData.uuid}`;
+
+        if (lastResponseData.pdfBase64) {
+          const binaryString = atob(lastResponseData.pdfBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const pdfUrl = URL.createObjectURL(blob);
+          const win = window.open(pdfUrl, '_blank');
+          if (win) {
+            win.document.title = titleName;
+          }
+          return;
+        }
+
+        const win = window.open(`/api/v1/facturas/${lastResponseData.uuid}/pdf`, '_blank');
+        if (win) {
+          win.document.title = titleName;
+        }
+      } catch (err) {
+        alert('Error abriendo visor PDF binario: ' + err.message);
+      }
+    }
+
+    function downloadPDFFile() {
+      if (!lastResponseData || !lastResponseData.uuid) return alert('No hay comprobante timbrado para descargar');
+      try {
+        if (lastResponseData.pdfBase64) {
+          const binaryString = atob(lastResponseData.pdfBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = getDocumentFilename('pdf');
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+        } else {
+          window.open(`/api/v1/facturas/${lastResponseData.uuid}/pdf`, '_blank');
+        }
+      } catch (e) {
+        alert('Error descargando archivo PDF: ' + e.message);
+      }
+    }
+
+    loadPreset('ingreso');
+  </script>
+</body>
+</html>
