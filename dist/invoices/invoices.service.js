@@ -810,18 +810,21 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             }
             catch (e) { }
         }
-        let noCertificadoSat = body.noCertificadoSat || '00001000000518812364';
-        let rfcPac = body.rfcPac || 'SNF171020F3A';
+        let isTimbrado = false;
+        let uuid = '';
+        let noCertificadoSat = '';
+        let rfcPac = '';
         const nowStr = new Date().toISOString().replace('T', ' ').split('.')[0];
         let fecha = body.fecha || nowStr;
-        let fechaCert = body.fechaCertificacion || fecha;
-        let selloCfd = body.sello || '';
-        let selloSat = body.selloSat || '';
-        let uuid = body.uuid || '80ffe330-11f7-4a59-8fe2-1a5e41d59fb4';
+        let fechaCert = '';
+        let selloCfd = '';
+        let selloSat = '';
         if (rawXml) {
             const mUuid = rawXml.match(/UUID="([^"]+)"/i);
-            if (mUuid)
+            if (mUuid && mUuid[1]) {
                 uuid = mUuid[1];
+                isTimbrado = true;
+            }
             const mSat = rawXml.match(/NoCertificadoSAT="([^"]+)"/i);
             if (mSat)
                 noCertificadoSat = mSat[1];
@@ -838,14 +841,53 @@ let InvoicesService = InvoicesService_1 = class InvoicesService {
             if (mSelloSat)
                 selloSat = mSelloSat[1];
         }
-        const finalSelloCfd = selloCfd || body.sello || 'qk3IjvyQqau/pMSSLH00rIgEo8+El7w8Z4fLPkVnLmYPWHKIlCBjS7h62clSC+ils+m3hyV2FEdCSXGBslOLbPAQdVVf7+JtjeKkwFG2um/yEpHf3/eYfRqlIPjw3SPw+4bAMHzSspqo3refcIjeTuUrbGsdovwrwTLOYNOQlO6lGrzS0M/cYTDEih5cyYfEcVcbALsKqVrUP7AccF9ySkIfFk/RNdAAu6VxlDsqGN4z9BiItny4WbAcArj54e8bvmtvUc0mw668IwoQ9Flm8YdPo4t/thPwLtt/X98aPpHHEUTPcgIA+6PNJ/oR2jPYuOpGg2RyGwL4iFuE2e0MYyDZw==';
-        const finalSelloSat = selloSat || body.selloSat || 'SQp740UOclyc0y91lOUzOoXH3j+EVDHMkwMIgCO7tzcuuYkoV5UItqvGZ2jvYVppCPGnPHfF5rNxgpJZ2iYsrUJSSMhamYVrIBIF2IGKA8UMEa3/UrL5s57Os4vmabUwykzvLiTpnx23rYokVfIxL54r9UFcJyU/j5CTykd0qr9vpT0JYdqvW9Cu3WbOPiQ4WzIMVFCzKBlU7VM3Zun94/RIz0LQDD7hi43qaQf6UeK8SDvXeDPPNQuDUKSXHX/M+KBddABvHPPgdeQiDBY1LwNNv1YLZAajy9uVrI/qt7xjb/kKhwiB/KqnGYmq487a+rAG26DmTx3bAcSUw+PFxw==';
-        const cadenaOriginal = body.cadenaOriginal || `||1.1|${uuid}|${fechaCert}|${rfcPac}|${finalSelloCfd}|${noCertificadoSat}||`;
+        if (!uuid && body.uuid && body.uuid !== '80ffe330-11f7-4a59-8fe2-1a5e41d59fb4' && body.uuid !== '70aadc83-cde9-4c57-99b2-72c572150c66') {
+            uuid = body.uuid;
+            isTimbrado = true;
+        }
+        if (body.sello)
+            selloCfd = body.sello;
+        if (body.selloSat)
+            selloSat = body.selloSat;
+        if (body.noCertificadoSat)
+            noCertificadoSat = body.noCertificadoSat;
+        if (body.rfcPac)
+            rfcPac = body.rfcPac;
+        if (body.fechaCertificacion)
+            fechaCert = body.fechaCertificacion;
+        if (body.isDraft || body.es_preview) {
+            isTimbrado = false;
+        }
+        let finalSelloCfd = '';
+        let finalSelloSat = '';
+        let cadenaOriginal = '';
+        let folioFiscalSat = '';
+        if (isTimbrado) {
+            folioFiscalSat = uuid;
+            fechaCert = fechaCert || fecha;
+            noCertificadoSat = noCertificadoSat || '00001000000518812364';
+            rfcPac = rfcPac || 'SNF171020F3A';
+            finalSelloCfd = selloCfd || body.sello || '';
+            finalSelloSat = selloSat || body.selloSat || '';
+            cadenaOriginal = body.cadenaOriginal || `||1.1|${uuid}|${fechaCert}|${rfcPac}|${finalSelloCfd}|${noCertificadoSat}||`;
+        }
+        else {
+            uuid = '';
+            folioFiscalSat = '[ DOCUMENTO SIN VALOR FISCAL - VISTA PREVIA ]';
+            fechaCert = '[ PENDIENTE DE TIMBRADO ]';
+            noCertificadoSat = '[ PENDIENTE DE TIMBRADO ]';
+            rfcPac = '[ PENDIENTE ]';
+            finalSelloCfd = 'DOCUMENTO SIN VALOR FISCAL - VISTA PREVIA. El sello digital del emisor se generará al timbrar ante el SAT.';
+            finalSelloSat = 'PENDIENTE DE CERTIFICACIÓN POR EL SAT / PAC.';
+            cadenaOriginal = '||1.1|VISTA-PREVIA-SIN-VALOR-FISCAL|FECHA-EMISION|DOCUMENTO-NO-TIMBRADO||';
+        }
         return {
             ...body,
+            isTimbrado,
             uuid,
-            serie: folioAndSerie.serie,
-            folio: folioAndSerie.folio,
+            folioFiscalSat,
+            serie: isTimbrado ? folioAndSerie.serie : 'PREV',
+            folio: isTimbrado ? folioAndSerie.folio : '0',
             noCertificado: noCertificado || '30001000000500003434',
             noCertificadoSat,
             rfcPac,
